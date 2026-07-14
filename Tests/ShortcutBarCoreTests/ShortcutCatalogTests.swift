@@ -1,0 +1,57 @@
+import XCTest
+@testable import ShortcutBarCore
+
+final class ShortcutCatalogTests: XCTestCase {
+    func testSafariCatalogContainsTabCommands() {
+        let identity = AppIdentity(localizedName: "Safari", bundleIdentifier: "com.apple.Safari")
+        let shortcuts = ShortcutCatalog.shortcuts(for: identity)
+
+        XCTAssertTrue(shortcuts.contains { $0.title == "New Tab" && $0.keys == "Cmd T" })
+        XCTAssertTrue(shortcuts.contains { $0.title == "Open Location" && $0.keys == "Cmd L" })
+    }
+
+    func testLabelSearchFindsFormattingCommands() {
+        let identity = AppIdentity(localizedName: "Notes", bundleIdentifier: "com.apple.Notes")
+        let results = ShortcutSearch.filter(ShortcutCatalog.shortcuts(for: identity), query: "label")
+        let titles = Set(results.map(\.title))
+
+        XCTAssertTrue(titles.contains("Bold"))
+        XCTAssertTrue(titles.contains("Highlight"))
+        XCTAssertTrue(titles.contains("Apply Heading Style"))
+    }
+
+    func testTaskSearchFindsChecklist() {
+        let identity = AppIdentity(localizedName: "Notes", bundleIdentifier: "com.apple.Notes")
+        let results = ShortcutSearch.filter(ShortcutCatalog.shortcuts(for: identity), query: "task")
+        let titles = Set(results.map(\.title))
+
+        XCTAssertTrue(titles.contains("Checklist"))
+    }
+
+    func testUnknownAppsStillGetCommonAndTextShortcuts() {
+        let identity = AppIdentity(localizedName: "Mystery", bundleIdentifier: "com.example.Mystery")
+        let shortcuts = ShortcutCatalog.shortcuts(for: identity)
+
+        XCTAssertTrue(shortcuts.contains { $0.title == "Copy" && $0.keys == "Cmd C" })
+        XCTAssertTrue(shortcuts.contains { $0.title == "Bold" && $0.keys == "Cmd B" })
+    }
+
+    func testDynamicMenuShortcutsWinDeduping() {
+        let dynamic = Shortcut(
+            source: "Safari",
+            title: "New Tab",
+            keys: "Cmd T",
+            category: "File",
+            origin: .menuBar
+        )
+        let builtIn = ShortcutCatalog.shortcuts(
+            for: AppIdentity(localizedName: "Safari", bundleIdentifier: "com.apple.Safari")
+        )
+
+        let merged = ShortcutCatalog.merge(dynamic: [dynamic], builtIn: builtIn)
+        let matches = merged.filter { $0.title == "New Tab" && $0.keys == "Cmd T" }
+
+        XCTAssertEqual(matches.count, 1)
+        XCTAssertEqual(matches.first?.origin, .menuBar)
+    }
+}

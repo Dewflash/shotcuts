@@ -1,0 +1,8 @@
+.build/
+.DS_Store
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+outputs/*.app/
+outputs/release-stage/
