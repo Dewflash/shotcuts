@@ -6,7 +6,7 @@ public enum ShortcutCatalog {
         var appSpecificShortcuts: [Shortcut] = []
         var contextualShortcuts: [Shortcut] = []
 
-        if shouldIncludeTextEditing(for: profile, identity: identity) {
+        if shouldIncludeTextEditing(for: profile) {
             contextualShortcuts += textEditingShortcuts
         }
 
@@ -27,7 +27,8 @@ public enum ShortcutCatalog {
             break
         }
 
-        return deduplicated(appSpecificShortcuts + contextualShortcuts + commonShortcuts)
+        let builtInShortcuts = profile == .unknown ? [] : commonShortcuts
+        return deduplicated(appSpecificShortcuts + contextualShortcuts + builtInShortcuts)
     }
 
     public static func merge(dynamic: [Shortcut], builtIn: [Shortcut]) -> [Shortcut] {
@@ -91,12 +92,12 @@ public enum ShortcutCatalog {
         return .unknown
     }
 
-    private static func shouldIncludeTextEditing(for profile: Profile, identity: AppIdentity) -> Bool {
+    private static func shouldIncludeTextEditing(for profile: Profile) -> Bool {
         switch profile {
-        case .finder, .preview:
-            return false
-        case .safari, .chrome, .browser, .mail, .notes, .textApp, .unknown:
+        case .mail, .notes, .textApp:
             return true
+        case .finder, .safari, .chrome, .browser, .preview, .unknown:
+            return false
         }
     }
 

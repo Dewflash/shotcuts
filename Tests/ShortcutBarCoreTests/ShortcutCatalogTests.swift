@@ -28,12 +28,23 @@ final class ShortcutCatalogTests: XCTestCase {
         XCTAssertTrue(titles.contains("Checklist"))
     }
 
-    func testUnknownAppsStillGetCommonAndTextShortcuts() {
-        let identity = AppIdentity(localizedName: "Mystery", bundleIdentifier: "com.example.Mystery")
+    func testUnknownAppsDoNotGetUnrelatedFallbackShortcuts() {
+        let identity = AppIdentity(localizedName: "Activity Monitor", bundleIdentifier: "com.apple.ActivityMonitor")
         let shortcuts = ShortcutCatalog.shortcuts(for: identity)
 
-        XCTAssertTrue(shortcuts.contains { $0.title == "Copy" && $0.keys == "Cmd C" })
-        XCTAssertTrue(shortcuts.contains { $0.title == "Bold" && $0.keys == "Cmd B" })
+        XCTAssertTrue(shortcuts.isEmpty)
+        XCTAssertFalse(shortcuts.contains { $0.title == "Bold" })
+        XCTAssertFalse(shortcuts.contains { $0.title == "Show Fonts" })
+        XCTAssertFalse(shortcuts.contains { $0.title == "Spotlight Search" })
+        XCTAssertFalse(shortcuts.contains { $0.title == "Switch Apps" })
+    }
+
+    func testSafariDoesNotGetTextEditingFallbackShortcuts() {
+        let identity = AppIdentity(localizedName: "Safari", bundleIdentifier: "com.apple.Safari")
+        let shortcuts = ShortcutCatalog.shortcuts(for: identity)
+
+        XCTAssertFalse(shortcuts.contains { $0.title == "Bold" })
+        XCTAssertFalse(shortcuts.contains { $0.title == "Underline" })
     }
 
     func testDynamicMenuShortcutsWinDeduping() {

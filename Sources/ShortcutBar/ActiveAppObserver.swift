@@ -32,6 +32,8 @@ final class ActiveAppObserver: ObservableObject {
     private var timer: Timer?
     private var menuReadToken = UUID()
     private let ownBundleID = Bundle.main.bundleIdentifier
+    private let ownProcessID = ProcessInfo.processInfo.processIdentifier
+    private var lastExternalApplication: NSRunningApplication?
 
     func start() {
         refresh()
@@ -40,9 +42,14 @@ final class ActiveAppObserver: ObservableObject {
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
+            let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             Task { @MainActor in
-                self?.refresh()
+                if let application {
+                    self?.refresh(application: application)
+                } else {
+                    self?.refresh()
+                }
             }
         }
 
@@ -72,15 +79,50 @@ final class ActiveAppObserver: ObservableObject {
         let wasAccessibilityTrusted = accessibilityTrusted
         accessibilityTrusted = AXIsProcessTrusted()
 
-        guard let app = NSWorkspace.shared.frontmostApplication else {
+        guard let app = targetApplication() else {
+            resetTarget()
             return
         }
 
+        updateSnapshot(for: app, wasAccessibilityTrusted: wasAccessibilityTrusted)
+    }
+
+    private func refresh(application: NSRunningApplication) {
+        guard !isOwnApplication(application) else {
+            return
+        }
+
+        let wasAccessibilityTrusted = accessibilityTrusted
+        accessibilityTrusted = AXIsProcessTrusted()
+        lastExternalApplication = application
+        updateSnapshot(for: application, wasAccessibilityTrusted: wasAccessibilityTrusted)
+    }
+
+    private func targetApplication() -> NSRunningApplication? {
+        guard let frontmostApplication = NSWorkspace.shared.frontmostApplication else {
+            guard let lastExternalApplication, !lastExternalApplication.isTerminated else {
+                return nil
+            }
+            return lastExternalApplication
+        }
+
+        if isOwnApplication(frontmostApplication) {
+            guard let lastExternalApplication, !lastExternalApplication.isTerminated else {
+                return nil
+            }
+            return lastExternalApplication
+        }
+
+        return frontmostApplication
+    }
+
+    private func updateSnapshot(for app: NSRunningApplication, wasAccessibilityTrusted: Bool) {
+        guard !isOwnApplication(app) else {
+            return
+        }
+
+        lastExternalApplication = app
         let bundleID = app.bundleIdentifier
-        if bundleID == ownBundleID {
-            return
-        }
-
         let title = accessibilityTrusted
             ? MenuShortcutReader.frontWindowTitle(pid: app.processIdentifier)
             : nil
@@ -100,6 +142,19 @@ final class ActiveAppObserver: ObservableObject {
         if changedApp || changedTitle || changedAccessibility || (accessibilityTrusted && menuShortcuts.isEmpty) {
             reloadMenuShortcuts(for: nextSnapshot)
         }
+    }
+
+    private func isOwnApplication(_ application: NSRunningApplication) -> Bool {
+        let bundleMatches = ownBundleID != nil && application.bundleIdentifier == ownBundleID
+        return application.processIdentifier == ownProcessID || bundleMatches
+    }
+
+    private func resetTarget() {
+        lastExternalApplication = nil
+        menuReadToken = UUID()
+        snapshot = .empty
+        menuShortcuts = []
+        isScanningMenus = false
     }
 
     private func reloadMenuShortcuts(for snapshot: ActiveAppSnapshot) {

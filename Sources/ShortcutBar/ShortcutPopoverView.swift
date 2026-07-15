@@ -22,6 +22,18 @@ struct ShortcutPopoverView: View {
         ShortcutSearch.filter(activeShortcuts, query: searchText)
     }
 
+    private var emptyStateTitle: String {
+        activeShortcuts.isEmpty
+            ? "No shortcuts found for \(observer.snapshot.appName)"
+            : "No matching shortcuts"
+    }
+
+    private var emptyStateMessage: String {
+        activeShortcuts.isEmpty
+            ? "Only verified app menu commands are shown"
+            : "Try a command, key, or tag"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -122,9 +134,9 @@ struct ShortcutPopoverView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 22))
                 .foregroundStyle(.secondary)
-            Text("No matching shortcuts")
+            Text(emptyStateTitle)
                 .font(.system(size: 13, weight: .medium))
-            Text("Try a command, key, or tag")
+            Text(emptyStateMessage)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }

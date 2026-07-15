@@ -12,6 +12,7 @@ ShortcutBar has no Dock icon. Launching it opens the transient shortcut panel im
 - Closes itself when focus leaves the panel, so the app you choose opens unobstructed.
 - Reads the active app menu bar through Accessibility when permission is enabled.
 - Falls back to a bundled catalog for common macOS shortcuts plus Finder, Safari/browser, Mail, Notes, Preview, and text editing commands.
+- Shows only verified live menu commands for apps outside the bundled catalog; it does not invent formatting or system shortcuts for unknown apps.
 - Sorts commands alphabetically.
 - Packages as a normal `.app`, `.dmg`, and `.zip`.
 
