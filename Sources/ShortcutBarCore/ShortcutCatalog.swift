@@ -21,13 +21,15 @@ public enum ShortcutCatalog {
             appSpecificShortcuts += notesShortcuts
         case .preview:
             appSpecificShortcuts += previewShortcuts
+        case .chatGPT:
+            appSpecificShortcuts += chatGPTShortcuts
         case .textApp:
             appSpecificShortcuts += textAppShortcuts(source: identity.localizedName.isEmpty ? "Text App" : identity.localizedName)
         case .unknown:
             break
         }
 
-        let builtInShortcuts = profile == .unknown ? [] : commonShortcuts
+        let builtInShortcuts = shouldIncludeCommonShortcuts(for: profile) ? commonShortcuts : []
         return deduplicated(appSpecificShortcuts + contextualShortcuts + builtInShortcuts)
     }
 
@@ -59,6 +61,7 @@ public enum ShortcutCatalog {
         case mail
         case notes
         case preview
+        case chatGPT
         case textApp
         case unknown
     }
@@ -85,6 +88,9 @@ public enum ShortcutCatalog {
         if bundleID == "com.apple.preview" || appName == "preview" {
             return .preview
         }
+        if bundleID == "com.openai.codex" || bundleID.contains("openai") || appName.contains("chatgpt") {
+            return .chatGPT
+        }
         if bundleID == "com.apple.textedit" || appName.contains("textedit") || appName.contains("pages") || appName.contains("word") || appName.contains("drafts") || appName.contains("ulysses") {
             return .textApp
         }
@@ -96,8 +102,17 @@ public enum ShortcutCatalog {
         switch profile {
         case .mail, .notes, .textApp:
             return true
-        case .finder, .safari, .chrome, .browser, .preview, .unknown:
+        case .finder, .safari, .chrome, .browser, .preview, .chatGPT, .unknown:
             return false
+        }
+    }
+
+    private static func shouldIncludeCommonShortcuts(for profile: Profile) -> Bool {
+        switch profile {
+        case .unknown, .chatGPT:
+            return false
+        case .finder, .safari, .chrome, .browser, .mail, .notes, .preview, .textApp:
+            return true
         }
     }
 
@@ -277,6 +292,14 @@ public enum ShortcutCatalog {
         shortcut("Notes", "Search Notes", "Option Cmd F", "Edit"),
         shortcut("Notes", "Show Attachments Browser", "Cmd 1", "View"),
         shortcut("Notes", "Show Folders", "Option Cmd S", "View")
+    ]
+
+    private static let chatGPTShortcuts: [Shortcut] = [
+        shortcut("ChatGPT", "New Chat", "Option Space", "Chat", ["conversation", "chat bar"]),
+        shortcut("ChatGPT", "Stop Streaming", "Cmd .", "Chat", ["stop", "cancel", "response"]),
+        shortcut("ChatGPT", "Share Main Desktop", "Shift Cmd 1", "Share", ["screen", "desktop"]),
+        shortcut("ChatGPT", "Share Active Window", "Shift Cmd 2", "Share", ["screen", "window"]),
+        shortcut("ChatGPT", "Open Built-in Browser", "Shift Cmd B", "Browser", ["web", "browser"])
     ]
 
     private static let previewShortcuts: [Shortcut] = [
