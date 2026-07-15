@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 
 @main
@@ -8,9 +9,10 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private let appObserver = ActiveAppObserver()
     private var globalClickMonitor: Any?
+    private var instanceLockDescriptor: Int32 = -1
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard keepSingleInstance() else {
+        guard acquireInstanceLock() else {
             return
         }
 
@@ -27,6 +29,15 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
                 self.popover.performClose(event)
             }
         }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.presentPopover()
+        }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        presentPopover()
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -34,6 +45,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         if let globalClickMonitor {
             NSEvent.removeMonitor(globalClickMonitor)
         }
+        releaseInstanceLock()
     }
 
     private func configureStatusItem() {
@@ -80,10 +92,18 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
-            appObserver.refresh()
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            NSApp.activate(ignoringOtherApps: true)
+            presentPopover()
         }
+    }
+
+    private func presentPopover() {
+        guard let button = statusItem.button, !popover.isShown else {
+            return
+        }
+
+        appObserver.refresh()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func showStatusMenu(relativeTo button: NSStatusBarButton) {
@@ -121,26 +141,32 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         NSApp.terminate(sender)
     }
 
-    private func keepSingleInstance() -> Bool {
-        let currentProcessID = ProcessInfo.processInfo.processIdentifier
-        let bundleIdentifier = Bundle.main.bundleIdentifier
-        let bundleURL = Bundle.main.bundleURL.standardizedFileURL
-        let existingInstance = NSWorkspace.shared.runningApplications.first { application in
-            guard application.processIdentifier != currentProcessID else {
-                return false
-            }
+    private func acquireInstanceLock() -> Bool {
+        let lockURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("com.dewflash.shotcuts.lock")
+        let descriptor = Darwin.open(lockURL.path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
 
-            let sameBundle = application.bundleURL?.standardizedFileURL == bundleURL
-            let sameIdentifier = bundleIdentifier != nil && application.bundleIdentifier == bundleIdentifier
-            return sameBundle || sameIdentifier
-        }
-
-        guard let existingInstance else {
+        guard descriptor >= 0 else {
             return true
         }
 
-        existingInstance.activate(options: [.activateIgnoringOtherApps])
-        NSApp.terminate(nil)
-        return false
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+            close(descriptor)
+            NSApp.terminate(nil)
+            return false
+        }
+
+        instanceLockDescriptor = descriptor
+        return true
+    }
+
+    private func releaseInstanceLock() {
+        guard instanceLockDescriptor >= 0 else {
+            return
+        }
+
+        _ = flock(instanceLockDescriptor, LOCK_UN)
+        close(instanceLockDescriptor)
+        instanceLockDescriptor = -1
     }
 }

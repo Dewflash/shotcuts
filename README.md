@@ -4,7 +4,7 @@ ShortcutBar is a native macOS menu bar app that shows keyboard shortcuts for the
 
 Click the menu bar keyboard icon to open a popover. The search field filters commands by command name, key combo, category, and tags, so searches like `label`, `tab`, `mail`, `folder`, or `copy` surface the right shortcuts.
 
-ShortcutBar has no Dock window. Left-click the menu bar icon to open it, or right-click the icon for `Open Shortcuts` and `Quit ShortcutBar`. If it is launched more than once, the newest copy exits and leaves the first copy running.
+ShortcutBar has no Dock window. Launching it opens the shortcut popover immediately; after that, left-click the menu bar item to reopen it. Right-click the item for `Open Shortcuts` and `Quit ShortcutBar`. If it is launched more than once, the newest copy exits and leaves the first copy running.
 
 ## What it does
 
