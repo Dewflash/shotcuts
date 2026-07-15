@@ -52,4 +52,4 @@ outputs/ShortcutBar-1.0.zip
 
 ## Accessibility
 
-The app works without Accessibility permission using the bundled catalog. Enable live menus from the footer of the panel to let ShortcutBar read the actual active app menu items and current window title.
+The app works without Accessibility permission using the bundled catalog. Live menu access is needed only to read the active app's verified `AXMenuBar` and `AXMenuItem` titles and shortcut metadata. ShortcutBar does not capture the screen or monitor keystrokes. Enable live menus from the footer of the panel when you want exact commands for apps outside the bundled catalog.

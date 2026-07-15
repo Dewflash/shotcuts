@@ -20,6 +20,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let appObserver = ActiveAppObserver()
     private var shortcutWindow: TransientShortcutPanel?
+    private var workspaceObserver: NSObjectProtocol?
     private var instanceLockDescriptor: Int32 = -1
 
     static func main() {
@@ -38,6 +39,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         configureStatusItem()
         configureShortcutWindow()
         appObserver.start()
+        observeExternalAppActivation()
 
         DispatchQueue.main.async { [weak self] in
             self?.presentShortcutWindow()
@@ -51,7 +53,28 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         appObserver.stop()
+        if let workspaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver)
+            self.workspaceObserver = nil
+        }
         releaseInstanceLock()
+    }
+
+    private func observeExternalAppActivation() {
+        workspaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+                return
+            }
+
+            Task { @MainActor [weak self] in
+                self?.shortcutWindow?.orderOut(nil)
+            }
+        }
     }
 
     private func configureStatusItem() {

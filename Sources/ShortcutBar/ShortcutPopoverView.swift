@@ -36,7 +36,7 @@ struct ShortcutPopoverView: View {
             return "Checking verified menu commands"
         }
         if !observer.accessibilityTrusted {
-            return "Allow live menus to read app-specific shortcuts"
+            return "macOS permission required to read this app's menu shortcuts"
         }
         return activeShortcuts.isEmpty
             ? "Only verified app menu commands are shown"
