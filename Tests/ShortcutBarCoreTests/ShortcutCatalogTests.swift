@@ -28,6 +28,22 @@ final class ShortcutCatalogTests: XCTestCase {
         XCTAssertTrue(titles.contains("Checklist"))
     }
 
+    func testSearchPrioritizesTitleMatchesBeforeTagMatches() {
+        let shortcuts = [
+            Shortcut(source: "Test", title: "Open", keys: "Cmd O", category: "File"),
+            Shortcut(source: "Test", title: "Open New Window", keys: "Cmd N", category: "Window"),
+            Shortcut(source: "Test", title: "New Window", keys: "Cmd Shift N", category: "Window"),
+            Shortcut(source: "Test", title: "New Tab", keys: "Cmd T", category: "File")
+        ]
+
+        let results = ShortcutSearch.filter(shortcuts, query: "new")
+
+        XCTAssertEqual(
+            results.map(\.title),
+            ["New Tab", "New Window", "Open New Window", "Open"]
+        )
+    }
+
     func testUnknownAppsDoNotGetUnrelatedFallbackShortcuts() {
         let identity = AppIdentity(localizedName: "Activity Monitor", bundleIdentifier: "com.apple.ActivityMonitor")
         let shortcuts = ShortcutCatalog.shortcuts(for: identity)
