@@ -8,6 +8,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let appObserver = ActiveAppObserver()
     private var shortcutWindow: NSPanel?
+    private var appDeactivationObserver: NSObjectProtocol?
     private var instanceLockDescriptor: Int32 = -1
 
     static func main() {
@@ -27,6 +28,16 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         configureShortcutWindow()
         appObserver.start()
 
+        appDeactivationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: NSApp,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.shortcutWindow?.orderOut(nil)
+            }
+        }
+
         DispatchQueue.main.async { [weak self] in
             self?.presentShortcutWindow()
         }
@@ -39,6 +50,9 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         appObserver.stop()
+        if let appDeactivationObserver {
+            NotificationCenter.default.removeObserver(appDeactivationObserver)
+        }
         releaseInstanceLock()
     }
 
@@ -52,8 +66,8 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         if let image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "ShortcutBar") {
             image.isTemplate = true
             button.image = image
-            button.imagePosition = .imageLeading
-            button.title = "Shortcuts"
+            button.imagePosition = .imageOnly
+            button.title = ""
         } else {
             button.title = "Shortcuts"
         }
@@ -74,9 +88,9 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         )
         panel.title = "ShortcutBar"
         panel.isReleasedWhenClosed = false
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         panel.contentViewController = NSHostingController(
             rootView: ShortcutPopoverView(observer: appObserver)
         )
@@ -110,7 +124,6 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
             window.center()
         }
         window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
     }
 
