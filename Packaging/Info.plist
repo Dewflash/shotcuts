@@ -8,6 +8,8 @@
     <string>ShortcutBar</string>
     <key>CFBundleExecutable</key>
     <string>ShortcutBar</string>
+    <key>CFBundleIconFile</key>
+    <string>ShortcutBar</string>
     <key>CFBundleIdentifier</key>
     <string>com.dewflash.shotcuts</string>
     <key>CFBundleInfoDictionaryVersion</key>

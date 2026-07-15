@@ -117,6 +117,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
             return
         }
 
+        window.dismissesWhenResigned = false
         appObserver.refresh()
         if !window.isVisible {
             window.center()
@@ -125,7 +126,10 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak window] in
-            window?.dismissesWhenResigned = true
+            guard let window, window.isVisible, window.isKeyWindow else {
+                return
+            }
+            window.dismissesWhenResigned = true
         }
     }
 

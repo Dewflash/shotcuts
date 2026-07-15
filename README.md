@@ -21,7 +21,7 @@ ShortcutBar has no Dock icon. Launching it opens the transient shortcut panel im
 - `Sources/ShortcutBar/` contains the menu bar app, active-app tracking, Accessibility reader, and transient panel UI.
 - `Sources/ShortcutBarCore/` contains shortcut models, catalogs, tags, and search logic.
 - `Tests/` contains the catalog and search tests.
-- `Packaging/` contains the app bundle metadata.
+- `Packaging/` contains the app bundle metadata and generated app icon assets.
 - `scripts/` contains the app and release packaging commands.
 - `outputs/` contains generated release artifacts.
 
