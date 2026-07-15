@@ -23,13 +23,22 @@ struct ShortcutPopoverView: View {
     }
 
     private var emptyStateTitle: String {
-        activeShortcuts.isEmpty
+        if observer.isScanningMenus {
+            return "Reading \(observer.snapshot.appName) menus"
+        }
+        return activeShortcuts.isEmpty
             ? "No shortcuts found for \(observer.snapshot.appName)"
             : "No matching shortcuts"
     }
 
     private var emptyStateMessage: String {
-        activeShortcuts.isEmpty
+        if observer.isScanningMenus {
+            return "Checking verified menu commands"
+        }
+        if !observer.accessibilityTrusted {
+            return "Allow live menus to read app-specific shortcuts"
+        }
+        return activeShortcuts.isEmpty
             ? "Only verified app menu commands are shown"
             : "Try a command, key, or tag"
     }
@@ -139,6 +148,18 @@ struct ShortcutPopoverView: View {
             Text(emptyStateMessage)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+
+            if activeShortcuts.isEmpty && !observer.isScanningMenus && !observer.accessibilityTrusted {
+                Button {
+                    observer.requestAccessibilityAccess()
+                } label: {
+                    Label("Enable live menus", systemImage: "lock.open")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .help("Allow ShortcutBar to read the active app menu")
+                .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 80)
