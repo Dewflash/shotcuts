@@ -2,13 +2,24 @@ import AppKit
 import Darwin
 import SwiftUI
 
+@MainActor
+private final class TransientShortcutPanel: NSPanel {
+    var dismissesWhenResigned = false
+
+    override func resignKey() {
+        super.resignKey()
+        if dismissesWhenResigned {
+            orderOut(nil)
+        }
+    }
+}
+
 @main
 @MainActor
 final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let appObserver = ActiveAppObserver()
-    private var shortcutWindow: NSPanel?
-    private var globalClickMonitor: Any?
+    private var shortcutWindow: TransientShortcutPanel?
     private var instanceLockDescriptor: Int32 = -1
 
     static func main() {
@@ -40,9 +51,6 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         appObserver.stop()
-        if let globalClickMonitor {
-            NSEvent.removeMonitor(globalClickMonitor)
-        }
         releaseInstanceLock()
     }
 
@@ -70,7 +78,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     }
 
     private func configureShortcutWindow() {
-        let panel = NSPanel(
+        let panel = TransientShortcutPanel(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 620),
             styleMask: [.titled, .closable, .utilityWindow],
             backing: .buffered,
@@ -116,13 +124,8 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
-
-        if globalClickMonitor == nil {
-            globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-                Task { @MainActor in
-                    self?.shortcutWindow?.orderOut(nil)
-                }
-            }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak window] in
+            window?.dismissesWhenResigned = true
         }
     }
 
