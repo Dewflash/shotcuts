@@ -6,10 +6,16 @@ import SwiftUI
 @MainActor
 final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let popover = NSPopover()
     private let appObserver = ActiveAppObserver()
-    private var globalClickMonitor: Any?
+    private var shortcutWindow: NSPanel?
     private var instanceLockDescriptor: Int32 = -1
+
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = ShortcutBarApp()
+        app.delegate = delegate
+        app.run()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard acquireInstanceLock() else {
@@ -18,33 +24,21 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.accessory)
         configureStatusItem()
-        configurePopover()
+        configureShortcutWindow()
         appObserver.start()
 
-        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            Task { @MainActor in
-                guard let self, self.popover.isShown else {
-                    return
-                }
-                self.popover.performClose(event)
-            }
-        }
-
         DispatchQueue.main.async { [weak self] in
-            self?.presentPopover()
+            self?.presentShortcutWindow()
         }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        presentPopover()
+        presentShortcutWindow()
         return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         appObserver.stop()
-        if let globalClickMonitor {
-            NSEvent.removeMonitor(globalClickMonitor)
-        }
         releaseInstanceLock()
     }
 
@@ -65,21 +59,31 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         }
 
         button.target = self
-        button.action = #selector(togglePopover(_:))
+        button.action = #selector(toggleShortcutWindow(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.toolTip = "ShortcutBar: Show shortcuts"
         button.setAccessibilityLabel("ShortcutBar shortcuts")
     }
 
-    private func configurePopover() {
-        popover.behavior = .transient
-        popover.contentSize = NSSize(width: 520, height: 620)
-        popover.contentViewController = NSHostingController(
+    private func configureShortcutWindow() {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 620),
+            styleMask: [.titled, .closable, .utilityWindow],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "ShortcutBar"
+        panel.isReleasedWhenClosed = false
+        panel.hidesOnDeactivate = false
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.contentViewController = NSHostingController(
             rootView: ShortcutPopoverView(observer: appObserver)
         )
+        shortcutWindow = panel
     }
 
-    @objc private func togglePopover(_ sender: Any?) {
+    @objc private func toggleShortcutWindow(_ sender: Any?) {
         guard let button = statusItem.button else {
             return
         }
@@ -89,20 +93,24 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
             return
         }
 
-        if popover.isShown {
-            popover.performClose(sender)
+        if shortcutWindow?.isVisible == true {
+            shortcutWindow?.orderOut(sender)
         } else {
-            presentPopover()
+            presentShortcutWindow()
         }
     }
 
-    private func presentPopover() {
-        guard let button = statusItem.button, !popover.isShown else {
+    private func presentShortcutWindow() {
+        guard let window = shortcutWindow else {
             return
         }
 
         appObserver.refresh()
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        if !window.isVisible {
+            window.center()
+        }
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -111,7 +119,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
 
         let openItem = NSMenuItem(
             title: "Open Shortcuts",
-            action: #selector(openPopoverFromMenu(_:)),
+            action: #selector(openShortcutWindowFromMenu(_:)),
             keyEquivalent: ""
         )
         openItem.target = self
@@ -133,8 +141,8 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         )
     }
 
-    @objc private func openPopoverFromMenu(_ sender: Any?) {
-        togglePopover(sender)
+    @objc private func openShortcutWindowFromMenu(_ sender: Any?) {
+        presentShortcutWindow()
     }
 
     @objc private func quitShortcutBar(_ sender: Any?) {
@@ -142,8 +150,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     }
 
     private func acquireInstanceLock() -> Bool {
-        let lockURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("com.dewflash.shotcuts.lock")
+        let lockURL = URL(fileURLWithPath: "/tmp/com.dewflash.shotcuts.lock")
         let descriptor = Darwin.open(lockURL.path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
 
         guard descriptor >= 0 else {
