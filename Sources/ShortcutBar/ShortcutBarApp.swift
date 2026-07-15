@@ -8,7 +8,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let appObserver = ActiveAppObserver()
     private var shortcutWindow: NSPanel?
-    private var appDeactivationObserver: NSObjectProtocol?
+    private var globalClickMonitor: Any?
     private var instanceLockDescriptor: Int32 = -1
 
     static func main() {
@@ -28,16 +28,6 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         configureShortcutWindow()
         appObserver.start()
 
-        appDeactivationObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didResignActiveNotification,
-            object: NSApp,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.shortcutWindow?.orderOut(nil)
-            }
-        }
-
         DispatchQueue.main.async { [weak self] in
             self?.presentShortcutWindow()
         }
@@ -50,8 +40,8 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         appObserver.stop()
-        if let appDeactivationObserver {
-            NotificationCenter.default.removeObserver(appDeactivationObserver)
+        if let globalClickMonitor {
+            NSEvent.removeMonitor(globalClickMonitor)
         }
         releaseInstanceLock()
     }
@@ -88,7 +78,7 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         )
         panel.title = "ShortcutBar"
         panel.isReleasedWhenClosed = false
-        panel.hidesOnDeactivate = true
+        panel.hidesOnDeactivate = false
         panel.level = .floating
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         panel.contentViewController = NSHostingController(
@@ -123,8 +113,17 @@ final class ShortcutBarApp: NSObject, NSApplicationDelegate {
         if !window.isVisible {
             window.center()
         }
-        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+
+        if globalClickMonitor == nil {
+            globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                Task { @MainActor in
+                    self?.shortcutWindow?.orderOut(nil)
+                }
+            }
+        }
     }
 
     private func showStatusMenu(relativeTo button: NSStatusBarButton) {
