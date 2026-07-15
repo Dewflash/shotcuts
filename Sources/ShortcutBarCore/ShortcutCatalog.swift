@@ -295,7 +295,7 @@ public enum ShortcutCatalog {
     ]
 
     private static let chatGPTShortcuts: [Shortcut] = [
-        shortcut("ChatGPT", "New Chat", "Option Space", "Chat", ["conversation", "chat bar"]),
+        shortcut("ChatGPT", "Open Chat Bar", "Option Space", "Chat", ["default", "configurable", "conversation", "chat bar"]),
         shortcut("ChatGPT", "Stop Streaming", "Cmd .", "Chat", ["stop", "cancel", "response"]),
         shortcut("ChatGPT", "Share Main Desktop", "Shift Cmd 1", "Share", ["screen", "desktop"]),
         shortcut("ChatGPT", "Share Active Window", "Shift Cmd 2", "Share", ["screen", "window"]),

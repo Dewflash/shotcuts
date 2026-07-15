@@ -67,7 +67,7 @@ final class ShortcutCatalogTests: XCTestCase {
         let identity = AppIdentity(localizedName: "ChatGPT", bundleIdentifier: "com.openai.codex")
         let shortcuts = ShortcutCatalog.shortcuts(for: identity)
 
-        XCTAssertTrue(shortcuts.contains { $0.title == "New Chat" && $0.keys == "Option Space" })
+        XCTAssertTrue(shortcuts.contains { $0.title == "Open Chat Bar" && $0.keys == "Option Space" })
         XCTAssertTrue(shortcuts.contains { $0.title == "Stop Streaming" && $0.keys == "Cmd ." })
         XCTAssertTrue(shortcuts.contains { $0.title == "Share Active Window" && $0.keys == "Shift Cmd 2" })
         XCTAssertFalse(shortcuts.contains { $0.source == "Common" })
